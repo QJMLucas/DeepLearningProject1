@@ -2,6 +2,9 @@ import numpy as np
 from HiddenLayer import HiddenLayer
 from Activation import Activation
 from sklearn.metrics import accuracy_score
+from sklearn.metrics import log_loss
+import math
+
 
 from scipy.special import softmax
 
@@ -10,7 +13,7 @@ class MLP:
     """ 
 
     # for initiallization, the code will create all layers automatically based on the provided parameters.     
-    def __init__(self, layers, activation=[None,'tanh','tanh']):
+    def __init__(self, layers, activation=[None,'relu','softmax']):
         """
         :param layers: A list containing the number of units in each layer.
         Should be at least two values
@@ -23,6 +26,8 @@ class MLP:
 
         self.totalCount = 0
         self.successCount = 0
+
+        self.stopCounter = 0
         
         self.activation=activation
         for i in range(len(layers)-1):
@@ -43,48 +48,85 @@ class MLP:
         activation_deriv=Activation(self.activation[-1]).f_deriv
         # MSE
 
-
-        y_hat[y_hat==0] = 1e-9
         # print(y_hat)
         # exit()
         # y represents class label - starts from 0 to 9
         # loss,delta=self.crossEntrophy(y[i],y_hat) - y[i] is one row of data with 128 columsn and y_hat is the result of the forward pro.
 
         # error example: [-1.42078735]
-        error = y-y_hat
-        # exit()
+        # error needs to be the derivative of cross entrophy which is not y minus y_hat
+
+        # error = y-y_hat
+
+        y_hat[y_hat==0] = 1e-9
+    
+
         # loss=error**2
 
+        # 根据 dataset 里的class
+      
+
         Y_true_label = np.zeros(len(y_hat))
-    
+
+        # row 1 - 5 , 
+
+        # Below is correct y - 0-9
         Y_true_label[y] = 1
 
-        # crossEntropy
-        loss = -np.sum(Y_true_label * np.log(y_hat))
+        Y_true= 1
+        
+        print(Y_true_label)
 
+        print(y_hat)
+    
+
+        # crossEntrop - my version - correct loss
+        loss = -np.sum(Y_true_label * np.log(y_hat))
+        # loss = -(Y_true_label* np.log(y_hat))
+
+        # error should be the derivative of cross entrophy which is below:
+        # np.log(e) * 1/x - since np.log(e) is = 1 so:
+        # error = 1/y_hat
+   
+        # print(loss)
+
+        # get the largest prob
         largest_prob = np.amax(y_hat)
+        # find the index
         largest_prob_index = np.where(y_hat == largest_prob)
 
+        # print(y_hat)
+        # print(largest_prob)
+        # print(largest_prob_index)
+        # print(type(largest_prob_index))
 
-        print(Y_true_label)
-        print('-----')
-        print(y_hat)
-        print(largest_prob)
-        print(largest_prob_index)
-        print(largest_prob_index[0][0])
-        print('-----')
-
-        print(int(Y_true_label[largest_prob_index[0][0]]))
+        list_largest_pro_index = []
+        for x in largest_prob_index:
+            if len(list_largest_pro_index) <1:
+                list_largest_pro_index.append(x)
 
          
-        if int(Y_true_label[largest_prob_index[0][0]]) == 1:
-            temp = 1
+        if len(list_largest_pro_index[0]) == 2:
+            if int(Y_true_label[list_largest_pro_index[0][0]]) == 1 or int(Y_true_label[list_largest_pro_index[0][1]]) == 1:
+                temp = 1
+            else:
+                temp = 0
+        elif len(list_largest_pro_index[0]) == 1:
+            if int(Y_true_label[list_largest_pro_index[0][0]]) == 1:
+                temp = 1
+            else:
+                temp = 0
         else:
             temp = 0
+    
             
         # calculate the delta of the output layer
+            
         # delta=-error*activation_deriv(y_hat)
-        delta = y_hat- y
+
+        # delta = y_hat- y
+        delta = 1/y_hat
+
 
         # return loss and delta
         return loss,delta,temp
@@ -100,16 +142,17 @@ class MLP:
     def update(self,lr):
         
         # gamma term is usally set to 0.9 as mentioned by lecturer
-        momentum_gamma = 0.9
+        momentum_gamma = 0.98
 
         for layer in self.layers:
             
+            # momentum
             layer.weight_V_t = momentum_gamma * layer.weight_V_t + lr * layer.grad_W
             layer.W =  layer.W - layer.weight_V_t
-            
+            # layer.W = (1-lr*0.98)*layer.W - layer.weight_V_t
 
             # weight decay - extra update to shrink the weight
-            layer.W *= 0.90
+            layer.W *= 0.98
 
             layer.bias_V_t = momentum_gamma * layer.bias_V_t + lr * layer.grad_b
             layer.b = layer.b - layer.bias_V_t
@@ -120,9 +163,9 @@ class MLP:
             # layer.b -= lr * layer.grad_b
 
     
-    def cross_entropy(self, actual, predicted):
-        loss = -np.sum(actual * np.log(predicted))
-        return loss
+    # def cross_entropy(self, actual, predicted):
+    #     loss = -np.sum(actual * np.log(predicted))
+    #     return loss
 
     # define the training function
     # it will return all losses within the whole training process.
@@ -141,27 +184,27 @@ class MLP:
         for k in range(epochs):
             loss=np.zeros(X.shape[0])
             for it in range(X.shape[0]):
+
                 i=np.random.randint(X.shape[0])
 
-                
-
-         
                 print('Step 1 forward -start')
 
-                print(i)
-                print(X[i])
+
 
                 # forward pass
                 y_hat = self.forward(X[i])
 
+                print(y_hat)
+                print(sum(y_hat))
 
-                # one_hot_encode = np.zeros(len(y_hat))
+                print('89757')
 
-                # largest_prob = np.amax(y_hat)
 
-                # largest_prob_index = np.where(y_hat == largest_prob)
 
-                # one_hot_encode[largest_prob_index] = 1
+                self.stopCounter+=1
+                # if self.stopCounter == 2:
+                #     exit()
+        
 
                 # print(y[i])
                 # print('one iteration of the forward finished here')
@@ -170,6 +213,7 @@ class MLP:
                 print('Step 2 - loss start')
 
                 # backward pass
+             
                 loss,delta,successCount=self.crossEntrophy(y[i],y_hat)
 
                 # print(loss)
@@ -181,7 +225,9 @@ class MLP:
                 self.update(learning_rate)
                 self.totalCount+=1
                 self.successCount+=successCount
-                    
+            
+            print(self.totalCount)
+            print(self.successCount)
 
             to_return[k] = np.mean(loss)
             total_val = self.totalCount
@@ -200,16 +246,14 @@ class MLP:
         return output
 
 def main():
-
     
     # x = np.array([709.79162097,709.79162097,709.79162097,709.79162097,709.79162097, 709.79162097,709.79162097,709.79162097,709.79162097,709.79162097])
     # np.exp(x)/np.sum(np.exp(x))
 
-    input_data = np.load('/Users/qjm/Documents/Usyd/2021/DL/Assignment 1/Assignment1-Dataset/train_data.npy')
-    output_data = np.load('/Users/qjm/Documents/Usyd/2021/DL/Assignment 1/Assignment1-Dataset/train_label.npy')
+    input_data = np.load('/Users/qjm/Documents/Usyd/2021/DL/Assignment 1/Assignment1-Dataset/test_data.npy')
+    output_data = np.load('/Users/qjm/Documents/Usyd/2021/DL/Assignment 1/Assignment1-Dataset/test_label.npy')
     
 
-    input_data = input_data[:10000]
 
     # print(np.unique(output_data))
     # print(output_data[7])
